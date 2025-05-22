@@ -1,4 +1,4 @@
-# Building the AIRE Framework - Example Terraform Repository
+# Building the AIRE Framework: Example Terraform Repository
 This repo is a companion repo for the Building the AIRE Framework livestream series.
 
 ## Livestream Description
