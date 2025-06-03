@@ -14,6 +14,15 @@ This repository contains a simple Terraform configuration for AWS that creates:
 
 This repository is intentionally missing the EC2 instance configuration, which will be added via the Terraform agent via a  GitHub PR.  We will use a standard GitOps workflow to automatically preview the infrastructure changes at the PR submission, and applies the changes to the production environment when the PR is merged.
 
+## 🚀 GitHub Actions Workflows
+
+This repository now includes automated Terraform workflows:
+- **PR Workflow**: Validates and plans Terraform changes on pull requests
+- **Apply Workflow**: Deploys infrastructure when PRs are merged to main
+- **Cost Guard**: Blocks expensive resources to keep costs minimal
+
+✅ **Workflow Status**: GitHub Actions configured and ready to deploy!
+
 ## Usage
 
 To-do: Write the instructions on how to trigger a terraform plan and when a terraform apply is executed.
