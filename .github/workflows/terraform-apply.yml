@@ -37,12 +37,48 @@ jobs:
 
     - name: Terraform Plan
       id: plan
-      run: terraform plan -no-color -input=false
+      run: terraform plan -no-color -input=false -out=tfplan
+
+    - name: Cost Guard - Block Expensive Resources
+      run: |
+        echo "🔍 Checking for expensive resources..."
+        
+        # Get plan as text
+        PLAN_TEXT=$(terraform show -no-color tfplan)
+        
+        # List of expensive resources to block
+        BLOCKED_RESOURCES=(
+          "aws_rds"
+          "aws_db_instance"
+          "aws_elasticsearch"
+          "aws_nat_gateway"
+          "aws_load_balancer"
+          "aws_elb"
+          "aws_alb"
+          "aws_nlb"
+          "large"
+          "xlarge"
+          "metal"
+          "kubernetes_cluster"
+          "container_cluster"
+          "redshift"
+          "emr_cluster"
+        )
+        
+        # Check if any blocked resources are in the plan
+        for resource in "${BLOCKED_RESOURCES[@]}"; do
+          if echo "$PLAN_TEXT" | grep -qi "$resource"; then
+            echo "❌ BLOCKED: Found expensive resource: $resource"
+            echo "Only free-tier resources are allowed in this example repo."
+            exit 1
+          fi
+        done
+        
+        echo "✅ No expensive resources detected. Safe to deploy!"
 
     - name: Terraform Apply
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: terraform apply -auto-approve -input=false
+      run: terraform apply -auto-approve tfplan
 
     - name: Terraform Output
-      if: steps.apply.conclusion == 'success'
       run: terraform output
