@@ -5,12 +5,9 @@ on:
     branches:
       - main
 
-env:
-  TF_ACTIONS_WORKING_DIR: '.'
-
 defaults:
   run:
-    working-directory: ${{ env.TF_ACTIONS_WORKING_DIR }}
+    working-directory: '.'
 
 permissions:
   contents: read
