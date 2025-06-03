@@ -1,0 +1,48 @@
+name: 'Terraform Apply'
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  TF_ACTIONS_WORKING_DIR: '.'
+
+defaults:
+  run:
+    working-directory: ${{ env.TF_ACTIONS_WORKING_DIR }}
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.5.0"
+        cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+    - name: Terraform Init
+      id: init
+      run: terraform init
+
+    - name: Terraform Plan
+      id: plan
+      run: terraform plan -no-color -input=false
+
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform apply -auto-approve -input=false
+
+    - name: Terraform Output
+      if: steps.apply.conclusion == 'success'
+      run: terraform output
