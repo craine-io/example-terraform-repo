@@ -5,12 +5,9 @@ on:
     branches:
       - main
 
-env:
-  TF_ACTIONS_WORKING_DIR: '.'
-
 defaults:
   run:
-    working-directory: ${{ env.TF_ACTIONS_WORKING_DIR }}
+    working-directory: '.'
 
 permissions:
   contents: read
@@ -24,6 +21,13 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_DEFAULT_REGION || 'us-east-1' }}
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -89,7 +93,7 @@ jobs:
 
           </details>
 
-          *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ env.TF_ACTIONS_WORKING_DIR }}\`, Workflow: \`${{ github.workflow }}\`*`;
+          *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`.\`, Workflow: \`${{ github.workflow }}\`*`;
 
           // 3. If we have a comment, update it, otherwise create a new one
           if (botComment) {
