@@ -1,7 +1,8 @@
 name: 'Terraform Apply'
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - main
 
@@ -17,6 +18,7 @@ jobs:
     name: 'Terraform'
     runs-on: ubuntu-latest
     environment: production
+    if: github.event.pull_request.merged == true
 
     steps:
     - name: Checkout
@@ -81,7 +83,6 @@ jobs:
         echo "✅ No expensive resources detected. Safe to deploy!"
 
     - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: terraform apply -auto-approve tfplan
 
     - name: Terraform Output
