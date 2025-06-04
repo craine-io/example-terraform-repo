@@ -8,6 +8,16 @@ provider "aws" {
   }
 }
 
+# Data source for Amazon Linux 2 AMI
+data "aws_ami" "amazon_linux_2" {
+  most_recent = true
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+  owners = ["amazon"]
+}
+
 # Create a VPC
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
@@ -103,15 +113,39 @@ resource "aws_security_group" "web" {
   }
 }
 
-# EC2 instance will be added here by the AI agent
-# Example:
-# resource "aws_instance" "web" {
-#   ami           = "ami-0c55b159cbfafe1f0"
-#   instance_type = "t2.micro"
-#   subnet_id     = aws_subnet.public.id
-#   security_groups = [aws_security_group.web.id]
-#   
-#   tags = {
-#     Name = "web-server"
-#   }
-# }
+# EC2 instance for Amazon Linux 2 t3.micro with external IP and SSH allowed
+resource "aws_security_group" "ssh_access" {
+  name        = "ssh-access-sg"
+  description = "Allow SSH access from anywhere"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Creator = "terraform-agent"
+  }
+}
+
+resource "aws_instance" "amazon_linux" {
+  ami                    = data.aws_ami.amazon_linux_2.id
+  instance_type          = "t3.micro"
+  subnet_id              = aws_subnet.public.id
+  associate_public_ip_address = true
+  vpc_security_group_ids = [aws_security_group.ssh_access.id]
+
+  tags = {
+    Creator = "terraform-agent"
+  }
+}
