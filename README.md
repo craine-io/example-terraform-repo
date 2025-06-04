@@ -16,12 +16,21 @@ This repository is intentionally missing the EC2 instance configuration, which w
 
 ## 🚀 GitHub Actions Workflows
 
-This repository now includes automated Terraform workflows:
-- **PR Workflow**: Validates and plans Terraform changes on pull requests
-- **Apply Workflow**: Deploys infrastructure when PRs are merged to main
+This repository includes automated Terraform workflows with proper GitOps flow:
+- **PR Workflow**: Validates and plans Terraform changes on pull requests (validation only)
+- **Apply Workflow**: Deploys infrastructure when PRs are merged to main (actual deployment)
 - **Cost Guard**: Blocks expensive resources to keep costs minimal
 
-✅ **Workflow Status**: GitHub Actions configured and ready to deploy!
+✅ **Workflow Status**: GitHub Actions configured with proper PR-based deployment!
+
+## 🔄 Testing GitOps Workflow
+
+This change is being made via pull request to demonstrate:
+1. **Branch creation** → No deployment triggered
+2. **Pull request** → Terraform plan validation runs
+3. **PR merge** → Terraform apply deployment runs
+
+**Current Test**: Demonstrating proper PR workflow with cost-safe infrastructure deployment.
 
 ## Usage
 
