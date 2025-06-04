@@ -16,7 +16,6 @@ variable "subnet_cidr" {
   default     = "10.0.1.0/24"
 }
 
-# Variables that would be needed for the EC2 instance
 variable "ami_id" {
   description = "AMI ID for the EC2 instance"
   type        = string
