@@ -8,89 +8,31 @@ provider "aws" {
   }
 }
 
-# Create a VPC
-resource "aws_vpc" "main" {
-  cidr_block           = var.vpc_cidr
-  enable_dns_support   = true
-  enable_dns_hostnames = true
-
-  tags = {
-    Name = "main-vpc"
-  }
+# Use existing VPC and Public Subnet assumed to be passed or referenced
+variable "existing_vpc_id" {
+  description = "ID of the existing VPC"
+  type        = string
 }
 
-# Create a public subnet
-resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.subnet_cidr
-  map_public_ip_on_launch = true
-  availability_zone       = "${var.region}a"
-
-  tags = {
-    Name = "public-subnet"
-  }
+variable "existing_subnet_id" {
+  description = "ID of the existing public subnet"
+  type        = string
 }
 
-# Create an internet gateway
-resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
+# Security group allowing all traffic except SSH (deny ingress SSH)
+resource "aws_security_group" "no_ssh_sg" {
+  name        = "no-ssh-sg"
+  description = "Security group to deny SSH ingress"
+  vpc_id      = var.existing_vpc_id
 
-  tags = {
-    Name = "main-igw"
-  }
-}
-
-# Create a route table
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
-  }
-
-  tags = {
-    Name = "public-route-table"
-  }
-}
-
-# Associate the route table with the subnet
-resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.public.id
-  route_table_id = aws_route_table.public.id
-}
-
-# Create a security group that allows HTTP, HTTPS and SSH traffic
-resource "aws_security_group" "web" {
-  name        = "web-sg"
-  description = "Allow web and SSH traffic"
-  vpc_id      = aws_vpc.main.id
-
-  # Allow HTTP
   ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
+    from_port   = 0
+    to_port     = 65535
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+    # Explicit deny rule is not supported in AWS SG, so simply not allowing SSH ingress
   }
 
-  # Allow HTTPS
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Allow SSH
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Allow all outbound traffic
   egress {
     from_port   = 0
     to_port     = 0
@@ -99,19 +41,115 @@ resource "aws_security_group" "web" {
   }
 
   tags = {
-    Name = "web-security-group"
+    Name = "no-ssh-sg"
   }
 }
 
-# EC2 instance will be added here by the AI agent
-# Example:
-# resource "aws_instance" "web" {
-#   ami           = "ami-0c55b159cbfafe1f0"
-#   instance_type = "t2.micro"
-#   subnet_id     = aws_subnet.public.id
-#   security_groups = [aws_security_group.web.id]
-#   
-#   tags = {
-#     Name = "web-server"
-#   }
-# }
+# IAM Role for EKS Cluster
+resource "aws_iam_role" "eks_cluster_role" {
+  name = "eks_cluster_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "eks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cluster_AmazonEKSClusterPolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  role       = aws_iam_role.eks_cluster_role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cluster_AmazonEKSServicePolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
+  role       = aws_iam_role.eks_cluster_role.name
+}
+
+# IAM Role for EKS Node Group
+resource "aws_iam_role" "eks_nodegroup_role" {
+  name = "eks_nodegroup_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "eks_nodegroup_AmazonEKSWorkerNodePolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+  role       = aws_iam_role.eks_nodegroup_role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_nodegroup_AmazonEC2ContainerRegistryReadOnly" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.eks_nodegroup_role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_nodegroup_AmazonEKSCNIPolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.eks_nodegroup_role.name
+}
+
+# EKS Cluster
+resource "aws_eks_cluster" "example" {
+  name     = "example-eks-cluster"
+  role_arn = aws_iam_role.eks_cluster_role.arn
+
+  vpc_config {
+    subnet_ids = [var.existing_subnet_id]
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_cluster_AmazonEKSClusterPolicy,
+    aws_iam_role_policy_attachment.eks_cluster_AmazonEKSServicePolicy
+  ]
+}
+
+# EKS Node Group
+resource "aws_eks_node_group" "example_nodes" {
+  cluster_name    = aws_eks_cluster.example.name
+  node_group_name = "example-node-group"
+  node_role_arn   = aws_iam_role.eks_nodegroup_role.arn
+  subnet_ids      = [var.existing_subnet_id]
+
+  scaling_config {
+    desired_size = 3
+    max_size     = 3
+    min_size     = 3
+  }
+
+  instance_types = ["t3.medium"]
+
+  depends_on = [
+    aws_eks_cluster.example
+  ]
+}
+
+# Create 2 VMs with no SSH access in the same subnet
+resource "aws_instance" "no_ssh_vms" {
+  count         = 2
+  ami           = var.ami_id
+  instance_type = var.instance_type
+  subnet_id     = var.existing_subnet_id
+  vpc_security_group_ids = [aws_security_group.no_ssh_sg.id]
+
+  tags = {
+    Name = "no-ssh-vm-${count.index + 1}"
+  }
+}

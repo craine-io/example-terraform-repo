@@ -1,25 +1,29 @@
-output "vpc_id" {
-  description = "ID of the VPC"
-  value       = aws_vpc.main.id
+output "eks_cluster_name" {
+  description = "The name of the EKS cluster"
+  value       = aws_eks_cluster.example.name
 }
 
-output "subnet_id" {
-  description = "ID of the public subnet"
-  value       = aws_subnet.public.id
+output "eks_cluster_endpoint" {
+  description = "The endpoint for the EKS cluster"
+  value       = aws_eks_cluster.example.endpoint
 }
 
-output "security_group_id" {
-  description = "ID of the security group"
-  value       = aws_security_group.web.id
+output "eks_cluster_security_group_id" {
+  description = "The security group IDs for the EKS cluster"
+  value       = aws_eks_cluster.example.vpc_config[0].cluster_security_group_id
 }
 
-# Future outputs for the EC2 instance
-# output "instance_id" {
-#   description = "ID of the EC2 instance"
-#   value       = aws_instance.web.id
-# }
-#
-# output "public_ip" {
-#   description = "Public IP of the EC2 instance"
-#   value       = aws_instance.web.public_ip
-# }
+output "eks_node_group_role_arn" {
+  description = "The ARN of the EKS node group role"
+  value       = aws_iam_role.eks_nodegroup_role.arn
+}
+
+output "no_ssh_vm_public_ips" {
+  description = "Public IPs of the VMs with no SSH access"
+  value       = aws_instance.no_ssh_vms.*.public_ip
+}
+
+output "no_ssh_vm_private_ips" {
+  description = "Private IPs of the VMs with no SSH access"
+  value       = aws_instance.no_ssh_vms.*.private_ip
+}
